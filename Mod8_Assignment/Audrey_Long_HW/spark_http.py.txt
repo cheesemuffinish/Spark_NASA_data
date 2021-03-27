@@ -1,0 +1,94 @@
+#Question 1
+import findspark
+findspark.init()
+
+import pyspark
+import random
+
+# function to get the first column of data
+def strippitydoodah(line):
+    temp = line.split(" - - ")
+    return temp[0]
+
+http_rdd = sc.textFile("C:\\Users\\becke\\Documents\\Mod8_Assignment\\NASA_access_log_Jul95\\access_log_Jul95")
+
+#get only unique hostnames/IP addresses
+distincties = http_rdd.map(strippitydoodah).distinct();
+print(distincties.count())
+print(distincties.take(10))
+
+
+#Question 2
+def cleanAndStrip(line):
+    temp = line.split(" ")
+    try:
+        return int(temp[-2])
+    except:
+        return 1337
+    
+pairs = http_rdd.map(lambda x: (cleanAndStrip(x),x))
+
+print("count by key")
+print(pairs.countByKey())
+
+
+#Question 3
+def cleanAndStrip2(line, index):
+    temp = line.split(" ")
+    
+    if temp[index] == "-":
+        return 0
+    
+    try:
+        return int(temp[index])
+    except:
+        return temp[index]
+
+    
+pairs = http_rdd.map(lambda x: (cleanAndStrip2(x, 0),cleanAndStrip2(x, -1)))
+sumCount = pairs.reduceByKey(lambda x, y: x + y)
+
+# open a (new) file to write
+outF = open("sum_bytes_results.txt", "w")
+
+textList = sumCount.collect()
+for line in textList:
+  # write line to output file
+  outF.write(str(line))
+  outF.write("\n")
+outF.close()
+
+
+#Question 4
+def cleanAndStrip3(line, flag):    
+    if flag == 0:
+        temp = line.split(" ")
+        return temp[0]
+    else:
+        if flag in line:
+            return 1
+        else:
+            return 0
+
+    
+pairs_Get = http_rdd.map(lambda x: (cleanAndStrip3(x, 0),cleanAndStrip3(x, "GET")))
+pairs_Put = http_rdd.map(lambda x: (cleanAndStrip3(x, 0),cleanAndStrip3(x, "PUT")))
+pairs_Post = http_rdd.map(lambda x: (cleanAndStrip3(x, 0),cleanAndStrip3(x, "POST")))
+
+print(pairs_Get.first())
+sumCount_get = pairs_Get.reduceByKey(lambda x, y: x + y).collect()
+sumCount_put = pairs_Put.reduceByKey(lambda x, y: x + y).collect()
+sumCount_post = pairs_Post.reduceByKey(lambda x, y: x + y).collect()
+
+# open a (new) file to write
+outF = open("request_results.txt", "w")
+
+i = 0
+outF.write("IP, GET count, PUT count, POST count \n")
+for line in sumCount_get:
+    
+  # write line to output file
+  outF.write(str(line[0])+","+str(line[1])+"," + str(sumCount_put[i][1])+"," + str(sumCount_post[i][1]))
+  outF.write("\n")
+  i += 1
+outF.close()
